@@ -1,14 +1,10 @@
 from fastapi import FastAPI
-from app.routers import items, test
-
+from app.routers import news
 
 app = FastAPI()
 
-# itmes router
-app.include_router(items.router)
-
-# test router 
-app.include_router(test.router)
+# news router 
+app.include_router(news.router)
 
 @app.get("/")
 def read_root():

@@ -1,49 +1,33 @@
 from fastapi import APIRouter
-import requests
-import json
+from app.news.newsapi import fetch_news
+from app.GPT.gpt import GptapiResult
+from app.Image_Similarity.Similarity import Similarity_Image_and_Text
+from app.Crawling.crawling import Crawling
+
 
 router = APIRouter()
 
-def fetch_news(api_key, country="kr", category="business", page_size=100):
-    # NewsAPI의 엔드포인트 URL
-    url = "https://newsapi.org/v2/top-headlines"
+@router.get("/news")
+def read_news():
+    # 뉴스 TOP 10 기사 데이터 요청 및 각 신문사별로 10개의 데이터 요청
+    # news_data = fetch_news() # 각 신문 기사별 publishedAt, urlToImage, url author title description name 데이터들이 들어있음
+    # print(news_data)
 
-    # 요청 파라미터
-    params = {
-        "apiKey": api_key,
-        "country": country,
-        "category": category,
-        "pageSize": page_size,
-    }
+    # # TODO 각 신문사별 URL를 전달받아 뉴스 본문 긁어오기
+    # url_list = [item["url"] for item in news_data]
+    # description_list = [item["description"] for item in news_data]
+    # print(url_list)
+    ##new_full_content = Crawling(url_list) # 각 신문사별 본문내용 10개 리스트 각 신문사의 제목을 통해 각 10개의 기사 제공
 
-    # API 요청 보내기
-    response = requests.get(url, params=params)
+    # TODO GPT 이용하여 각 본문 내용 요약 및 전체 본문 내용 뽑아내기
+    wise_new_full_content = GptapiResult(new_full_content)
 
-    # JSON 형식으로 응답 가져오기
-    news_data = response.json()
+    # # TODO 본문내용에 의해 이미지 텍스트 유사도 검증으로 썸네일 이미지
+    #urltoimage = [item["urltoimage"] for item in news_data] # 기사 10개의 썸네일 이미지
+    #Thumbnail_image = Similarity_Image_and_Text(wise_new_full_content,urltoimage) # 기사 본문과 제일 유사한 이미지 뽑아내기
+
+    # TODO 정보 파싱후 DB 저장 (newsid, category, name, source(author, title, description, url, urltoimage, publishedAt), url_main, urlToImage, content)
+
 
     return news_data
 
-@router.get("/news")
-def read_news(item_id: int = None):
-    # 여기에 당신의 NewsAPI의 API 키를 입력해주세요
-    api_key = "ed9def0329da4d16b237507a98905ba8"
-
-    # 뉴스 데이터 가져오기
-    news_data = fetch_news(api_key)
-
-    # 필요한 데이터 추출
-    parsed_news = []
-    for article in news_data.get("articles", []):
-        parsed_article = {
-            "name": article.get("source", {}).get("name"),
-            "author": article.get("author"),
-            "title": article.get("title"),
-            "description": article.get("description"),
-            "url": article.get("url"),
-            "urltoimage": article.get("urlToImage"),
-            "publishedAt": article.get("publishedAt")
-        }
-        parsed_news.append(parsed_article)
-
-    return parsed_news

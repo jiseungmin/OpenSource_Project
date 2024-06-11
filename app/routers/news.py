@@ -50,9 +50,9 @@ def read_news(request: IntegretionNews):
     # 각 ObjectId별로 데이터를 추출하여 JSON 응답 생성
     for idx, item in enumerate(news_items):
         if 'news_content' in item:
-            response_data[idx + 1] = [content[3] for content in item['news_content']]
-            image_urls[idx + 1] = [content[2] for content in item['news_content']]
-            news_lists[idx + 1] = [content[1] for content in item['news_content']]
+            response_data[idx + 1] = [content['content'] for content in item['news_content']]
+            image_urls[idx + 1] = [content['image'] for content in item['news_content']]
+            news_lists[idx + 1] = [content['url'] for content in item['news_content']]
     
     for i in range(1, len(response_data) + 1):
         # GPT를 이용하여 전체 본문 내용 뽑아내기
@@ -69,8 +69,9 @@ def read_news(request: IntegretionNews):
     db = client['Integrated_news']
     save_collection = db['Society']
     for i in range(1, len(response_data) + 1):
+        title = news_items[i - 1]['news_content'][0]['title']  # 마지막 데이터 저장할 때 title 설정
         news_data = {
-            "title": response_data[i][0],
+            "title": title,  # 첫 번째 news_content의 title 사용
             "newsurlList": news_lists[i],
             "full_contents": all_full_contents[i - 1],
             "Thumbnail_image": thumbnail_images[i - 1],
@@ -141,12 +142,21 @@ def newscluster(request: ClustertRequest):
     top_today_news_db = client['Top_Today_News']
     category_collection = top_today_news_db[collection_name]
     category_collection.delete_many({})
-    
+
     # 10. Top_Today_NewsDB category 컬렉션에 데이터 저장
     for cluster_id, titles_urls_images_contents in redefined_clusters.items():
+        formatted_content = [{
+                'title': item[0],
+                'url': item[1],
+                'image': item[2],
+                'content': item[3]
+            }
+            for item in titles_urls_images_contents
+        ]
+
         category_collection.insert_one({
             'cluster_id': cluster_id,
-            'news_content': titles_urls_images_contents,
+            'news_content': formatted_content,
             'date': date_str
         })
         

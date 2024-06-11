@@ -13,9 +13,24 @@ router = APIRouter()
 
 class SentimentRequest(BaseModel):
     content: str
-    
+
+def analyze_sentiment(content: str, headers: dict, api_url: str) -> str:
+    data = {"content": content}
+    try:
+        response = requests.post(api_url, headers=headers, data=json.dumps(data, ensure_ascii=False).encode('utf-8'))
+        response.raise_for_status()  # HTTP 에러 발생 시 예외 발생
+        response_data = response.json()
+        
+        if 'document' in response_data and 'sentiment' in response_data['document']:
+            return response_data['document']['sentiment']
+        else:
+            raise HTTPException(status_code=500, detail="Invalid response structure")
+    except requests.exceptions.RequestException as e:
+        raise HTTPException(status_code=response.status_code, detail=str(e))
+
 @router.post("/sentiment")
 def collectnews(request: SentimentRequest):
+
     # 출력 인코딩 설정
     sys.stdout.reconfigure(encoding='utf-8')
 
@@ -34,24 +49,24 @@ def collectnews(request: SentimentRequest):
         "Content-Type": "application/json"
     }
 
-    # 요청 데이터
-    data = {
-        "content": request.content
-    }
-    
+    content = request.content
     try:
-        response = requests.post(api_url, headers=headers, data=json.dumps(data, ensure_ascii=False).encode('utf-8'))
-        response.raise_for_status()  # HTTP 에러 발생 시 예외 발생
+        # 첫 번째 시도
+        sentiment = analyze_sentiment(content, headers, api_url)
+        return {"sentiment": sentiment}
+    except HTTPException as e:
+            # 글을 반으로 나눔
+            mid = len(content) // 2
+            first_half = content[:mid]
+            second_half = content[mid:]
 
-        response_data = response.json()
-        
-        # 감정 분석 결과를 JSON 응답에서 가져오기
-        if 'document' in response_data and 'sentiment' in response_data['document']:
-            sentiment = response_data['document']['sentiment']
-            print(sentiment)
-            return {"sentiment": sentiment}
-        else:
-            raise HTTPException(status_code=500, detail="Invalid response structure")
-    except requests.exceptions.RequestException as e:
-        raise HTTPException(status_code=response.status_code, detail=str(e))
+            # 각각의 반에 대해 감정 분석 수행
+            first_sentiment = analyze_sentiment(first_half, headers, api_url)
+            second_sentiment = analyze_sentiment(second_half, headers, api_url)
+
+            # 두 개의 결과를 결합하여 최종 감정 상태를 결정
+            if first_sentiment == second_sentiment:
+                return {"sentiment": first_sentiment}
+            else:
+                return {"sentiment": "neutral"}
 

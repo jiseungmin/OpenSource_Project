@@ -138,9 +138,12 @@ async def main(client_id, client_secret, db, keyword, total_results, interval):
 
             # MongoDB에 데이터 저장
             for article in valid_articles:
-                collection_name = article['category']
-                collection = db[collection_name]
-                await collection.insert_one(article)
+                try:
+                    collection_name = article['category']
+                    collection = db[collection_name]
+                    await collection.insert_one(article)
+                except Exception as e:
+                    print(f"Failed to insert article into MongoDB: {e}")
 
             # 콘솔에 출력
             for article in valid_articles:
@@ -152,11 +155,22 @@ async def main(client_id, client_secret, db, keyword, total_results, interval):
                 print(f"URL to Image: {article['urlToImage']}")
                 print(f"Published At: {article['publishedAt']}\n")
 
-            # 각 카테고리별 문서 수 출력
+            # 각 카테고리별 문서 수 출력 및 count 컬렉션에 저장
+            count_collection = db['AllCount']
             for category in category_mapping.values():
-                collection = db[category]
-                count = await collection.count_documents({})
-                print(f"{category} category documents count: {count}")
+                try:
+                    collection = db[category]
+                    count = await collection.count_documents({})
+                    print(f"{category} category documents count: {count}")
+
+                    # count 컬렉션에 각 카테고리별 문서 수 저장
+                    await count_collection.update_one(
+                        {'category': category},
+                        {'$set': {'count': count}},
+                        upsert=True
+                    )
+                except Exception as e:
+                    print(f"Failed to update count for category {category}: {e}")
 
             # 7분 간격 대기
             await asyncio.sleep(interval)

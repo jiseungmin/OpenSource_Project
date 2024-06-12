@@ -4,4 +4,3 @@ __pycache__/
 *$py.class
 .vercel
 myenv/
-.env
